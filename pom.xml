@@ -58,7 +58,7 @@
     </build>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <tomcat.version>8.5.38</tomcat.version>
+        <tomcat.version>8.5.63</tomcat.version>
     </properties>
     <dependencies>
         <dependency>

@@ -16,5 +16,5 @@ mvn clean package
 ```
 Then run it
 ```
-sh target/bin/webapp
+java –jar target/biblioteca-1.0-SNAPSHOT.jar
 ```
