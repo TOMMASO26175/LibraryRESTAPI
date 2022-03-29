@@ -1,14 +1,25 @@
 import com.google.gson.Gson;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.ws.rs.*;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.FormParam;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+
 @Path("/book")
 public class Library {
     private final String error = "Server error, contact administrators";
@@ -197,7 +208,7 @@ public class Library {
             String obj = new Gson().toJson(error);
             return Response.serverError().entity(obj).build();
         }
-        String obj = new Gson().toJson("Book with ISBN:" + isbn);
+        String obj = new Gson().toJson("Book with ISBN:" + isbn + " Rented");
         return Response.ok(obj,MediaType.APPLICATION_JSON).build();
     }
 
