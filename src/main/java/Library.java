@@ -2,6 +2,7 @@ import com.google.gson.Gson;
 
 import java.sql.*;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -140,9 +141,11 @@ public class Library {
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     public Response rent(@FormParam("ISBN") String isbn){
         if(isbn == null || isbn.trim().length() == 0){
-            return Response.serverError().entity("ISBN must be valid").build();
+            String obj = new Gson().toJson("ISBN must be valid");
+            return Response.serverError().entity(obj).build();
         }
         final String QUERY = "SELECT Quantity FROM Libri WHERE ISBN = ?";
+        int quantity = 0;
         final String[] data = Database.getData();
         try(
 
@@ -151,8 +154,10 @@ public class Library {
         ) {
             pstmt.setString(1,isbn);
             ResultSet results =  pstmt.executeQuery();
-            while(results.next())
-                if(results.getInt("Quantity") > 0){
+            while(results.next()) {
+                quantity = results.getInt("Quantity");
+            }
+                if(quantity > 0){
                     final LocalDateTime dateNow = LocalDateTime.now();
                     final LocalDateTime rentExpiration = dateNow.plusMinutes(10);
                     final String QUERY2 = "INSERT INTO Prestiti(Inizio,Scadenza,ISBN) VALUES(?,?,?)";
@@ -160,7 +165,7 @@ public class Library {
 
                     try (
                             PreparedStatement stmt = conn.prepareStatement( QUERY2 )
-                            )
+                    )
                     {
                         stmt.setString(1,String.valueOf(dateNow));
                         stmt.setString(2,String.valueOf(rentExpiration));
@@ -175,7 +180,7 @@ public class Library {
                             PreparedStatement stmt = conn.prepareStatement( QUERY3 )
                     )
                     {
-                        stmt.setInt(1,results.getInt("Quantity"));
+                        stmt.setInt(1,quantity-1);
                         stmt.setString(2,isbn);
                         stmt.execute();
                     }catch ( SQLException e ){
@@ -184,14 +189,109 @@ public class Library {
                     }
 
                 }else {
-                    return Response.serverError().entity("All the books with this ISBN are already rented").build();
+                    String obj = new Gson().toJson("All the books with this ISBN are already rented");
+                    return Response.serverError().entity(obj).build();
                 }
         }catch (SQLException e){
             e.printStackTrace();
             String obj = new Gson().toJson(error);
             return Response.serverError().entity(obj).build();
         }
-        String obj = new Gson().toJson("Libro con ISBN:" + isbn + " eliminato con successo");
+        String obj = new Gson().toJson("Book with ISBN:" + isbn);
         return Response.ok(obj,MediaType.APPLICATION_JSON).build();
+    }
+
+
+    @POST
+    @Path("/return")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response forceReturn(@FormParam("ID") String id){
+        if(id == null || id.trim().length() == 0){
+            String obj = new Gson().toJson("ID must be valid");
+            return Response.serverError().entity(obj).build();
+        }
+        final String QUERY = "SELECT ISBN FROM Prestiti WHERE ID = ?";
+        final String[] data = Database.getData();
+        String isbn = "";
+        try(
+
+                Connection conn = DriverManager.getConnection(data[0], data[1], data[2]);
+                PreparedStatement pstmt = conn.prepareStatement( QUERY )
+        ) {
+            pstmt.setString(1,id);
+            ResultSet results =  pstmt.executeQuery();
+            while(results.next()) {
+                isbn = results.getString("ISBN");
+            }
+            if(!isbn.isEmpty()){
+                final String QUERY2 = "DELETE FROM Prestiti WHERE ID = ?";
+                final String QUERY3 = "UPDATE Libri SET Quantity = Quantity + 1 WHERE ISBN = ?";
+                try (
+                        PreparedStatement stmt = conn.prepareStatement( QUERY2 )
+                )
+                {
+                    stmt.setString(1,id);
+                    stmt.execute();
+                }catch ( SQLException e ){
+                    e.printStackTrace();
+                    return Response.serverError().entity(error).build();
+                }
+
+                try (
+                        PreparedStatement stmt = conn.prepareStatement( QUERY3 )
+                )
+                {
+                    stmt.setString(1,isbn);
+                    stmt.execute();
+                }catch ( SQLException e ){
+                    e.printStackTrace();
+                    return Response.serverError().entity(error).build();
+                }
+
+            }else {
+                String obj = new Gson().toJson("Unable to find the rented book");
+                return Response.serverError().entity(obj).build();
+            }
+        }catch (SQLException e){
+            e.printStackTrace();
+            String obj = new Gson().toJson(error);
+            return Response.serverError().entity(obj).build();
+        }
+        String obj = new Gson().toJson("Closed the rent with id: " + id + "that had the book with ISBN:" + isbn);
+        return Response.ok(obj,MediaType.APPLICATION_JSON).build();
+    }
+
+    @GET
+    @Path("/nearexpiry")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response getExpiries(){
+        final String QUERY = "SELECT * FROM Prestiti WHERE Scadenza BETWEEN ? AND ?";
+        final List<Rentals> rentals = new ArrayList<>();
+        final LocalDateTime dateNow = LocalDateTime.now();
+        final String[] data = Database.getData();
+        try(
+                Connection conn = DriverManager.getConnection(data[0], data[1], data[2]);
+                PreparedStatement pstmt = conn.prepareStatement( QUERY )
+        ) {
+            pstmt.setString(1, String.valueOf(dateNow.minusDays(3)));
+            pstmt.setString(2, String.valueOf(dateNow.plusDays(3)));
+            ResultSet results =  pstmt.executeQuery();
+            while (results.next()){
+                Rentals rent = new Rentals();
+                rent.setID(results.getString("ID"));
+                rent.setStart(results.getString("Inizio"));
+                rent.setExpiry(results.getString("Scadenza"));
+                rent.setISBN(results.getString("ISBN"));
+                rentals.add(rent);
+            }
+        }catch (SQLException e){
+            e.printStackTrace();
+            String obj = new Gson().toJson(error);
+            return Response.serverError().entity(obj).build();
+        }
+        String obj = new Gson().toJson(rentals);
+        return Response.status(200).entity(obj).build();
     }
 }
