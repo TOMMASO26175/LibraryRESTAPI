@@ -1,5 +1,13 @@
 public class Book {
-    private String Autore,Titolo,ISBN;
+    private String Autore,Titolo,ISBN,Quantity;
+
+    public String getQuantity() {
+        return Quantity;
+    }
+
+    public void setQuantity(String quantity) {
+        Quantity = quantity;
+    }
 
     public String getAutore() {
         return Autore;

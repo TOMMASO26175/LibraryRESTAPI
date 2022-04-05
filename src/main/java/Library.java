@@ -45,6 +45,7 @@ public class Library {
                 book.setTitolo(results.getString("Titolo"));
                 book.setAutore(results.getString("Autore"));
                 book.setISBN(results.getString("ISBN"));
+                book.setQuantity(results.getString("Quantity"));
                 books.add(book);
 
             }
